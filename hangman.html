@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hangman</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .container {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
+      width: min(600px, 100%);
+      padding: 2rem;
+    }
+    h1 {
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .status {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .status > div {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 0.9rem 1rem;
+      border-radius: 12px;
+    }
+    .word-display {
+      letter-spacing: 0.35em;
+      font-size: 2rem;
+      text-align: center;
+      margin: 0;
+      padding: 1rem 0;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: center;
+    }
+    .controls input {
+      width: 4rem;
+      text-transform: lowercase;
+      padding: 0.65rem 0.75rem;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      text-align: center;
+    }
+    .controls button {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      padding: 0.75rem 1.2rem;
+      font-size: 1rem;
+      transition: background 0.2s ease;
+    }
+    .controls button:hover {
+      background: #1d4ed8;
+    }
+    .controls button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .message {
+      min-height: 2rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .message.error {
+      color: #b91c1c;
+    }
+    .message.success {
+      color: #047857;
+    }
+    .guessed {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .guessed span {
+      display: inline-flex;
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      background: #e5e7eb;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hangman</h1>
+    <div class="status">
+      <div>
+        <strong>Remaining guesses:</strong>
+        <span id="remaining">6</span>
+      </div>
+      <div>
+        <strong>Word progress:</strong>
+        <p class="word-display" id="word">_ _ _ _ _ _</p>
+      </div>
+      <div>
+        <strong>Guessed letters:</strong>
+        <div class="guessed" id="guessed"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input id="letterInput" type="text" maxlength="1" placeholder="a" autofocus />
+      <button id="guessButton">Guess</button>
+      <button id="restartButton" type="button">Restart</button>
+    </div>
+
+    <div class="message" id="message"></div>
+  </div>
+
+  <script>
+    const words = [
+      'python',
+      'hangman',
+      'developer',
+      'computer',
+      'challenge',
+    ];
+
+    const maxIncorrect = 6;
+    let secretWord = '';
+    let guessedLetters = new Set();
+    let incorrectGuesses = 0;
+
+    const remainingEl = document.getElementById('remaining');
+    const wordEl = document.getElementById('word');
+    const guessedEl = document.getElementById('guessed');
+    const letterInput = document.getElementById('letterInput');
+    const guessButton = document.getElementById('guessButton');
+    const restartButton = document.getElementById('restartButton');
+    const messageEl = document.getElementById('message');
+
+    function chooseWord() {
+      const index = Math.floor(Math.random() * words.length);
+      return words[index];
+    }
+
+    function displayWord() {
+      const display = Array.from(secretWord)
+        .map(ch => (guessedLetters.has(ch) ? ch : '_'))
+        .join(' ');
+      wordEl.textContent = display;
+      return display;
+    }
+
+    function updateGuessed() {
+      guessedEl.innerHTML = '';
+      Array.from(guessedLetters)
+        .sort()
+        .forEach(letter => {
+          const span = document.createElement('span');
+          span.textContent = letter;
+          guessedEl.appendChild(span);
+        });
+    }
+
+    function setMessage(text, type = '') {
+      messageEl.textContent = text;
+      messageEl.className = `message ${type}`.trim();
+    }
+
+    function updateStatus() {
+      remainingEl.textContent = maxIncorrect - incorrectGuesses;
+      displayWord();
+      updateGuessed();
+    }
+
+    function endGame(won) {
+      letterInput.disabled = true;
+      guessButton.disabled = true;
+      if (won) {
+        setMessage(`You won! The word is: ${secretWord}`, 'success');
+      } else {
+        setMessage(`You lost! The word was: ${secretWord}`, 'error');
+      }
+    }
+
+    function resetGame() {
+      secretWord = chooseWord();
+      guessedLetters.clear();
+      incorrectGuesses = 0;
+      letterInput.disabled = false;
+      guessButton.disabled = false;
+      letterInput.value = '';
+      setMessage('Guess a letter to start.', '');
+      updateStatus();
+      letterInput.focus();
+    }
+
+    function handleGuess() {
+      const guess = letterInput.value.trim().toLowerCase();
+      letterInput.value = '';
+      if (guess.length !== 1 || !guess.match(/^[a-z]$/)) {
+        setMessage('Please enter exactly one letter (a-z).', 'error');
+        return;
+      }
+      if (guessedLetters.has(guess)) {
+        setMessage(`You already guessed '${guess}'. Try another letter.`, 'error');
+        return;
+      }
+      guessedLetters.add(guess);
+      if (secretWord.includes(guess)) {
+        setMessage(`Good guess: '${guess}' is in the word!`, 'success');
+      } else {
+        incorrectGuesses += 1;
+        setMessage(`Wrong guess: '${guess}' is not in the word.`, 'error');
+      }
+      updateStatus();
+
+      const currentDisplay = displayWord();
+      if (!currentDisplay.includes('_')) {
+        endGame(true);
+      } else if (incorrectGuesses >= maxIncorrect) {
+        endGame(false);
+      }
+    }
+
+    guessButton.addEventListener('click', handleGuess);
+    restartButton.addEventListener('click', resetGame);
+    letterInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        handleGuess();
+      }
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
